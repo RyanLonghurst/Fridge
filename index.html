@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fridge">
+<meta name="theme-color" content="#EEF3F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E171B" media="(prefers-color-scheme: dark)">
+<title>Fridge</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧊</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script>
+/* ------------------------------------------------------------------
+   1. PASTE YOUR FIREBASE CONFIG HERE
+   Firebase console > Project settings > Your apps > Web app.
+   Until you do, the app runs in local mode (this device only).
+------------------------------------------------------------------- */
+const firebaseConfig = {
+  apiKey: "PASTE_HERE",
+  authDomain: "PASTE_HERE",
+  projectId: "PASTE_HERE",
+  storageBucket: "PASTE_HERE",
+  messagingSenderId: "PASTE_HERE",
+  appId: "PASTE_HERE"
+};
+
+/* ------------------------------------------------------------------
+   2. FIRESTORE RULES (paste into Firestore > Rules). No sign-in:
+      anyone who has this page's config can read and edit the list.
+
+   rules_version = '2';
+   service cloud.firestore {
+     match /databases/{database}/documents {
+       match /households/main/{document=**} {
+         allow read, write: if true;
+       }
+     }
+   }
+------------------------------------------------------------------- */
+</script>
+
+<style>
+:root{
+  --bg:#EEF3F4; --surface:#FFFFFF; --ink:#14242B; --muted:#5E7078; --line:#D9E2E5;
+  --accent:#1F5FBF; --on-accent:#FFFFFF;
+  --ok:#2E9A6B; --low:#C98A0C; --out:#D1432B;
+  --fill-ok:rgba(46,154,107,.15); --fill-low:rgba(224,162,27,.24);
+  --display:"Bricolage Grotesque",ui-rounded,"SF Pro Rounded",system-ui,sans-serif;
+  --body:"Instrument Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0E171B; --surface:#16232A; --ink:#E8F0F2; --muted:#8FA3AB; --line:#26383F;
+    --accent:#7DB0FF; --on-accent:#0B1A2E;
+    --ok:#5CC596; --low:#F0BC4A; --out:#FF7A62;
+    --fill-ok:rgba(92,197,150,.16); --fill-low:rgba(240,188,74,.20);
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.4 var(--body)}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+#app{max-width:560px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;
+  padding:env(safe-area-inset-top,0px) 0 calc(84px + env(safe-area-inset-bottom,0px))}
+header{display:flex;align-items:baseline;justify-content:space-between;padding:20px 20px 8px}
+h1{font:700 34px/1 var(--display);letter-spacing:-.02em;margin:0}
+#who{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;padding:6px 0}
+#who i{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block}
+#who.local i{background:var(--low)}
+
+#banner{margin:8px 20px 0;padding:10px 12px;border-radius:10px;background:var(--fill-low);font-size:14px}
+
+main{padding:8px 20px 0;flex:1}
+.tools{display:flex;flex-direction:column;gap:10px;margin:8px 0 6px}
+.search{width:100%;padding:11px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.seg{display:flex;background:var(--line);border-radius:12px;padding:3px;gap:3px}
+.seg button{flex:1;padding:8px 4px;border-radius:9px;font-size:14px;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink)}
+
+h2.group{font:500 14px/1 var(--body);color:var(--muted);margin:22px 0 8px}
+.rows{background:var(--surface);border-radius:16px;overflow:hidden}
+.row{display:flex;width:100%;text-align:left;align-items:center;gap:12px;padding:14px 16px;
+  border-top:1px solid var(--line);position:relative;
+  background:linear-gradient(to right,var(--fill) var(--pct),transparent var(--pct))}
+.row:first-child{border-top:0}
+.row.ok{--fill:var(--fill-ok)} .row.low{--fill:var(--fill-low)} .row.out{--fill:transparent}
+.row .nm{flex:1;min-width:0}
+.row .nm b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .nm span{font-size:13px;color:var(--muted)}
+.row .qty{font:700 18px/1 var(--display);white-space:nowrap}
+.row.out .qty{color:var(--out)} .row.low .qty{color:var(--low)}
+
+.buyrow{display:flex;align-items:center;gap:12px;padding:14px 16px;border-top:1px solid var(--line)}
+.buyrow:first-child{border-top:0}
+.buyrow .nm{flex:1;min-width:0}
+.buyrow .nm b{display:block;font-weight:600}
+.buyrow .nm span{font-size:13px;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+.dot.low{background:var(--low)} .dot.out{background:var(--out)}
+
+.btn{background:var(--accent);color:var(--on-accent);padding:11px 16px;border-radius:12px;font-weight:600}
+.btn.quiet{background:var(--line);color:var(--ink)}
+.btn.small{padding:8px 12px;font-size:14px}
+.link{color:var(--accent);font-weight:500;padding:8px 0}
+.link.danger{color:var(--out)}
+
+.empty{text-align:center;padding:56px 16px;color:var(--muted)}
+.empty p{margin:0 0 16px}
+.empty strong{display:block;font:700 22px/1.2 var(--display);color:var(--ink);margin-bottom:6px}
+
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
+  padding:8px 20px calc(8px + env(safe-area-inset-bottom,0px))}
+nav div{max-width:520px;margin:0 auto;display:flex;align-items:center;gap:8px}
+nav .tab{flex:1;padding:12px 4px;border-radius:12px;font-weight:600;color:var(--muted)}
+nav .tab[aria-pressed="true"]{color:var(--ink);background:var(--bg)}
+nav .badge{display:inline-block;min-width:20px;padding:1px 6px;margin-left:4px;border-radius:10px;
+  background:var(--low);color:#1b1400;font-size:12px}
+#addBtn{width:52px;height:52px;border-radius:50%;background:var(--accent);color:var(--on-accent);
+  font:500 30px/1 var(--display);flex:none}
+
+#scrim{position:fixed;inset:0;background:rgba(8,16,20,.5);display:flex;align-items:flex-end;justify-content:center;z-index:5}
+#sheet{background:var(--surface);width:100%;max-width:560px;max-height:92%;overflow:auto;
+  border-radius:22px 22px 0 0;padding:22px 20px calc(22px + env(safe-area-inset-bottom,0px));
+  animation:up .18s ease-out}
+@keyframes up{from{transform:translateY(24px);opacity:0}}
+@media (prefers-reduced-motion: reduce){#sheet{animation:none}}
+#sheet h2{font:700 26px/1.1 var(--display);margin:0 0 4px}
+#sheet .big{font:700 40px/1 var(--display);letter-spacing:-.02em;margin:10px 0 6px}
+#sheet .meta{color:var(--muted);font-size:14px;margin:0 0 6px}
+#sheet h3{font:600 15px/1 var(--body);margin:22px 0 10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{padding:9px 14px;border-radius:999px;background:var(--bg);font-weight:500;font-size:15px}
+.inline{display:flex;gap:8px}
+.field{display:block;margin:14px 0 0}
+.field>span{display:block;font-size:14px;color:var(--muted);margin-bottom:6px}
+.inp{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);min-width:0}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:22px}
+.full{width:100%;margin-top:22px}
+
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + env(safe-area-inset-bottom,0px));
+  background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:12px;display:flex;gap:14px;
+  align-items:center;font-size:14px;z-index:6;white-space:nowrap}
+#toast button{color:inherit;font-weight:700;text-decoration:underline}
+
+#gate{position:fixed;inset:0;background:var(--bg);z-index:9;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;padding:32px;text-align:center}
+#gate h1{font-size:56px}
+#gate p{color:var(--muted);margin:0;max-width:30ch}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <h1>Fridge</h1>
+    <div id="who"><i></i><span></span></div>
+  </header>
+  <div id="banner" hidden></div>
+  <main id="view"></main>
+</div>
+
+<nav><div>
+  <button class="tab" data-act="tab" data-tab="stock">In stock</button>
+  <button id="addBtn" data-act="add" aria-label="Add item">+</button>
+  <button class="tab" data-act="tab" data-tab="shop">To buy<span class="badge" id="badge" hidden></span></button>
+</div></nav>
+
+<div id="scrim" hidden><div id="sheet" role="dialog" aria-modal="true"></div></div>
+<div id="toast" hidden></div>
+<div id="gate" hidden></div>
+
+<script>
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DAY = 864e5;
+const LOCS = [['fridge','Fridge'],['freezer','Freezer'],['cupboard','Cupboard']];
+const UNITS = [['g','Grams'],['ml','Millilitres'],['n','Items']];
+const unitWord = u => u === 'n' ? 'items' : u;
+const num = v => { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) && n >= 0 ? n : null; };
+
+function fmt(q, u){
+  if (u === 'n') return String(Math.round(q));
+  if (q >= 1000) return (+(q / 1000).toFixed(2)) + (u === 'g' ? ' kg' : ' l');
+  return (q < 50 ? Math.round(q) : Math.round(q / 5) * 5) + ' ' + u;
+}
+function ago(t){
+  const d = (Date.now() - t) / DAY;
+  if (d < 1/24) return 'just now';
+  if (d < 1) return Math.round(d * 24) + ' h ago';
+  if (d < 2) return 'yesterday';
+  return Math.round(d) + ' days ago';
+}
+
+/* ---------- the stock model ----------
+   checkQty  what was actually there the last time someone checked
+   checkAt   when that was
+   bought    how much has been added since that check
+   daily     learned usage per day
+   usual     what "fully stocked" means
+   The app estimates what is left now from those, and learns `daily`
+   every time someone corrects the amount.                            */
+function est(it){
+  const days = Math.max(0, (Date.now() - it.checkAt) / DAY);
+  return Math.max(0, (it.checkQty || 0) + (it.bought || 0) - (it.daily || 0) * days);
+}
+function daysLeft(it){ return it.daily > 0 ? est(it) / it.daily : Infinity; }
+function status(it){
+  const e = est(it);
+  if (e < (it.unit === 'n' ? 0.5 : 1)) return 'out';
+  const frac = it.usual > 0 ? e / it.usual : 1;
+  if (it.usual > 0 && frac <= 0.25) return 'low';
+  if (daysLeft(it) <= 3 && frac <= 0.6) return 'low';
+  return 'ok';
+}
+function afterCheck(it, qty){            // someone says "this is what's actually left"
+  const now = Date.now(), days = (now - it.checkAt) / DAY;
+  const had = (it.checkQty || 0) + (it.bought || 0);
+  let daily = it.daily || 0;
+  if (days >= 1 && qty <= had){          // learn usage from the gap
+    const seen = (had - qty) / days;
+    daily = daily > 0 ? daily * 0.6 + seen * 0.4 : seen;
+  }
+  return {...it, checkQty: qty, checkAt: now, bought: 0, daily: +daily.toFixed(3), by: me};
+}
+function afterBuy(it, amount){
+  const days = (Date.now() - it.checkAt) / DAY;
+  const raw = (it.checkQty || 0) + (it.bought || 0) - (it.daily || 0) * days;
+  if (raw < 0) return {...it, checkQty: amount, checkAt: Date.now(), bought: 0, by: me}; // had run dry
+  return {...it, bought: (it.bought || 0) + amount, by: me};
+}
+
+/* ---------- state ---------- */
+let items = {};            // id -> item
+let tab = 'stock', loc = 'all', query = '';
+let me = '', undo = null, toastTimer = null;
+let store = null;          // {save(id,data), remove(id), signOut?}
+
+/* ---------- local store (preview / before Firebase is set up) ---------- */
+function localStore(){
+  const KEY = 'fridge-items';
+  try { items = JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ items = {}; }
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(items)); } catch(e){} render(); };
+  return {
+    save(id, data){ items[id] = data; persist(); },
+    remove(id){ delete items[id]; persist(); }
+  };
+}
+
+/* ---------- Firebase store (shared) ---------- */
+async function firebaseStore(){
+  const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const [A, F] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-firestore.js')]);
+  const app = A.initializeApp(firebaseConfig);
+  let db;
+  try { db = F.initializeFirestore(app, {localCache: F.persistentLocalCache({tabManager: F.persistentMultipleTabManager()})}); }
+  catch(e){ db = F.getFirestore(app); }
+  const col = F.collection(db, 'households', 'main', 'items');
+  $('#who span').textContent = 'Shared';
+  F.onSnapshot(col, snap => {
+    gate(null); items = {}; snap.forEach(d => items[d.id] = d.data()); render();
+  }, err => {
+    gate(null); $('#banner').hidden = false;
+    $('#banner').textContent = 'Firestore refused access. Check the rules are published.';
+    render();
+  });
+  return {
+    save(id, data){ items[id] = data; render(); F.setDoc(F.doc(col, id), data).catch(() => toast('Could not save. Check the Firestore rules.')); },
+    remove(id){ delete items[id]; render(); F.deleteDoc(F.doc(col, id)).catch(() => toast('Could not delete.')); }
+  };
+}
+
+/* ---------- rendering ---------- */
+function gate(html){ const g = $('#gate'); g.hidden = !html; g.innerHTML = html || ''; }
+
+function render(){
+  const all = Object.entries(items).map(([id, it]) => ({id, ...it}));
+  const low = all.filter(it => status(it) !== 'ok');
+  document.querySelectorAll('nav .tab').forEach(b => b.setAttribute('aria-pressed', b.dataset.tab === tab));
+  $('#badge').hidden = !low.length; $('#badge').textContent = low.length;
+  $('#view').innerHTML = tab === 'stock' ? stockView(all) : shopView(low);
+}
+
+function stockView(all){
+  if (!all.length) return `<div class="empty"><strong>Nothing here yet</strong>
+    <p>Add what's in your fridge, freezer and cupboards. Tap + to start.</p>
+    <button class="btn quiet" data-act="examples">Add a few example items</button></div>`;
+  const q = query.trim().toLowerCase();
+  const shown = all.filter(it => (loc === 'all' || it.loc === loc) && (!q || it.name.toLowerCase().includes(q)))
+                   .sort((a, b) => a.name.localeCompare(b.name));
+  let html = `<div class="tools">
+    <input class="search" id="q" type="search" placeholder="Search" value="${esc(query)}" aria-label="Search items">
+    <div class="seg">${[['all','All'], ...LOCS].map(([k, l]) =>
+      `<button data-act="loc" data-loc="${k}" aria-pressed="${loc === k}">${l}</button>`).join('')}</div></div>`;
+  if (!shown.length) return html + `<div class="empty"><p>No items match.</p></div>`;
+  for (const [k, label] of LOCS){
+    const group = shown.filter(it => it.loc === k);
+    if (!group.length) continue;
+    html += `<h2 class="group">${label}</h2><div class="rows">${group.map(row).join('')}</div>`;
+  }
+  return html;
+}
+function row(it){
+  const e = est(it), s = status(it), d = daysLeft(it);
+  const pct = it.usual > 0 ? Math.min(100, Math.round(e / it.usual * 100)) : 100;
+  const sub = s === 'out' ? 'Run out' : d < 60 ? `Lasts about ${Math.max(1, Math.round(d))} day${Math.round(d) > 1 ? 's' : ''}`
+            : it.usual > 0 ? `Usually ${fmt(it.usual, it.unit)}` : '';
+  return `<button class="row ${s}" style="--pct:${pct}%" data-act="open" data-id="${it.id}">
+    <span class="nm"><b>${esc(it.name)}</b><span>${sub}</span></span>
+    <span class="qty">${s === 'out' ? 'Out' : fmt(e, it.unit)}</span></button>`;
+}
+
+function shopView(low){
+  if (!low.length) return `<div class="empty"><strong>Nothing to buy</strong><p>Everything is above its usual low point.</p></div>`;
+  low.sort((a, b) => (est(a) / (a.usual || 1)) - (est(b) / (b.usual || 1)));
+  return `<h2 class="group">Running low or out</h2><div class="rows">${low.map(it => {
+    const e = est(it), s = status(it), need = Math.max(0, (it.usual || 0) - e);
+    const left = s === 'out' ? 'None left' : `${fmt(e, it.unit)} left`;
+    const buy = need > 0 ? `, buy about ${fmt(need, it.unit)}` : '';
+    return `<div class="buyrow"><i class="dot ${s}"></i>
+      <span class="nm"><b>${esc(it.name)}</b><span>${left}${buy}</span></span>
+      ${need > 0 ? `<button class="btn small" data-act="restock" data-id="${it.id}">Bought</button>`
+                 : `<button class="btn small quiet" data-act="open" data-id="${it.id}">Update</button>`}</div>`;
+  }).join('')}</div>`;
+}
+
+/* ---------- sheets ---------- */
+function openSheet(html){ $('#sheet').innerHTML = html; $('#scrim').hidden = false; }
+function closeSheet(){ $('#scrim').hidden = true; }
+
+function itemSheet(id){
+  const it = items[id]; if (!it) return closeSheet();
+  const e = est(it), u = unitWord(it.unit);
+  const meta = [LOCS.find(l => l[0] === it.loc)[1],
+    it.usual > 0 ? `Usually ${fmt(it.usual, it.unit)}` : null,
+    it.daily > 0 ? `Using about ${fmt(it.daily, it.unit)} a day` : 'Usage not learned yet',
+    `Checked ${ago(it.checkAt)}${it.by ? ' by ' + esc(it.by) : ''}`].filter(Boolean).join('. ') + '.';
+  const fr = it.usual > 0 ? `<div class="chips">${[['Empty',0],['¼',.25],['½',.5],['¾',.75],['Full',1]].map(([l, v]) =>
+    `<button class="chip" data-act="left" data-id="${id}" data-v="${v}">${l}</button>`).join('')}</div>` : '';
+  openSheet(`<h2>${esc(it.name)}</h2>
+    <p class="big">${fmt(e, it.unit)}${it.unit === 'n' ? ' left' : ''}</p><p class="meta">${meta}</p>
+    <h3>What's actually left?</h3>${fr}
+    <div class="inline"><input class="inp" id="leftIn" inputmode="decimal" placeholder="Exact amount in ${u}" aria-label="Exact amount left in ${u}">
+      <button class="btn quiet" data-act="leftExact" data-id="${id}">Set</button></div>
+    <h3>Bought more</h3>
+    <div class="inline"><input class="inp" id="buyIn" inputmode="decimal" placeholder="Amount in ${u}" aria-label="Amount bought in ${u}">
+      <button class="btn quiet" data-act="buy" data-id="${id}">Add</button></div>
+    <div class="foot"><button class="link" data-act="edit" data-id="${id}">Edit details</button>
+      <button class="link danger" data-act="del" data-id="${id}">Delete</button></div>`);
+}
+
+let form = null;   // {id|null, loc, unit}
+function formSheet(id){
+  const it = id ? items[id] : null;
+  form = {id: id || null, loc: it ? it.loc : (loc === 'all' ? 'fridge' : loc), unit: it ? it.unit : 'g'};
+  drawForm(it ? {name: it.name, usual: it.usual || '', daily: it.daily || '', have: ''} : {name: '', usual: '', daily: '', have: ''});
+}
+function drawForm(v){
+  const u = unitWord(form.unit);
+  const seg = (list, cur, act) => `<div class="seg">${list.map(([k, l]) =>
+    `<button data-act="${act}" data-v="${k}" aria-pressed="${cur === k}">${l}</button>`).join('')}</div>`;
+  openSheet(`<h2>${form.id ? 'Edit item' : 'Add item'}</h2>
+    <label class="field"><span>Name</span><input class="inp" id="fName" value="${esc(v.name)}" placeholder="Milk" autocomplete="off"></label>
+    <div class="field"><span>Where it lives</span>${seg(LOCS, form.loc, 'fLoc')}</div>
+    <div class="field"><span>Measured in</span>${seg(UNITS, form.unit, 'fUnit')}</div>
+    ${form.id ? '' : `<label class="field"><span>How much you have now (${u})</span><input class="inp" id="fHave" inputmode="decimal" value="${esc(v.have)}"></label>`}
+    <label class="field"><span>How much you usually keep when stocked up (${u})</span><input class="inp" id="fUsual" inputmode="decimal" value="${esc(v.usual)}"></label>
+    <label class="field"><span>Rough use per day (${u}). Leave blank and the app will learn it.</span><input class="inp" id="fDaily" inputmode="decimal" value="${esc(v.daily)}"></label>
+    <button class="btn full" data-act="saveForm">${form.id ? 'Save changes' : 'Add item'}</button>`);
+}
+function readForm(){
+  return {name: $('#fName').value, usual: $('#fUsual').value, daily: $('#fDaily').value, have: $('#fHave') ? $('#fHave').value : ''};
+}
+
+/* ---------- toast with undo ---------- */
+function toast(msg, undoFn){
+  const t = $('#toast'); undo = undoFn || null;
+  t.innerHTML = `<span>${esc(msg)}</span>${undoFn ? '<button data-act="undo">Undo</button>' : ''}`;
+  t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 5000);
+}
+function change(id, next, msg){
+  const prev = items[id];
+  store.save(id, next);
+  toast(msg, () => store.save(id, prev));
+}
+
+/* ---------- actions ---------- */
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : 'i' + Date.now() + Math.random().toString(36).slice(2));
+
+const actions = {
+  tab(el){ tab = el.dataset.tab; render(); },
+  loc(el){ loc = el.dataset.loc; render(); },
+  add(){ formSheet(null); },
+  open(el){ itemSheet(el.dataset.id); },
+  edit(el){ formSheet(el.dataset.id); },
+  fLoc(el){ const v = readForm(); form.loc = el.dataset.v; drawForm(v); },
+  fUnit(el){ const v = readForm(); form.unit = el.dataset.v; drawForm(v); },
+  saveForm(){
+    const v = readForm(), name = v.name.trim();
+    if (!name){ $('#fName').focus(); return; }
+    const usual = num(v.usual) || 0, daily = num(v.daily) || 0;
+    if (form.id){
+      store.save(form.id, {...items[form.id], name, loc: form.loc, unit: form.unit, usual, daily, by: me});
+    } else {
+      const have = num(v.have);
+      store.save(newId(), {name, loc: form.loc, unit: form.unit, usual: usual || have || 0, daily,
+        checkQty: have == null ? usual : have, checkAt: Date.now(), bought: 0, by: me});
+    }
+    closeSheet();
+  },
+  left(el){
+    const it = items[el.dataset.id], qty = it.usual * parseFloat(el.dataset.v);
+    change(el.dataset.id, afterCheck(it, qty), `${it.name} set to ${fmt(qty, it.unit)}`); closeSheet();
+  },
+  leftExact(el){
+    const it = items[el.dataset.id], qty = num($('#leftIn').value);
+    if (qty == null){ $('#leftIn').focus(); return; }
+    change(el.dataset.id, afterCheck(it, qty), `${it.name} set to ${fmt(qty, it.unit)}`); closeSheet();
+  },
+  buy(el){
+    const it = items[el.dataset.id], amt = num($('#buyIn').value);
+    if (!amt){ $('#buyIn').focus(); return; }
+    change(el.dataset.id, afterBuy(it, amt), `Added ${fmt(amt, it.unit)} of ${it.name}`); closeSheet();
+  },
+  restock(el){
+    const it = items[el.dataset.id], need = Math.max(0, (it.usual || 0) - est(it));
+    change(el.dataset.id, afterBuy(it, need), `${it.name} restocked`);
+  },
+  del(el){
+    const id = el.dataset.id, prev = items[id];
+    store.remove(id); closeSheet();
+    toast(`${prev.name} deleted`, () => store.save(id, prev));
+  },
+  undo(){ if (undo) undo(); undo = null; $('#toast').hidden = true; },
+  examples(){
+    const now = Date.now();
+    [['Milk','fridge','ml',2000,300,1400],['Eggs','fridge','n',12,1.5,3],['Butter','fridge','g',250,15,180],
+     ['Apples','fridge','n',6,1,5],['Pasta','cupboard','g',1000,60,150],['Rice','cupboard','g',2000,80,1600],
+     ['Frozen peas','freezer','g',900,40,0]]
+      .forEach(([name, l, unit, usual, daily, have]) =>
+        store.save(newId(), {name, loc: l, unit, usual, daily, checkQty: have, checkAt: now, bought: 0, by: me}));
+  }
+};
+
+document.addEventListener('click', e => {
+  if (e.target.id === 'scrim') return closeSheet();
+  const el = e.target.closest('[data-act]');
+  if (el && actions[el.dataset.act]) actions[el.dataset.act](el);
+});
+document.addEventListener('input', e => {
+  if (e.target.id !== 'q') return;
+  query = e.target.value; render();
+  const q = $('#q'); if (q){ q.focus(); q.setSelectionRange(query.length, query.length); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+
+/* ---------- start ---------- */
+(async function start(){
+  const configured = firebaseConfig.apiKey && firebaseConfig.apiKey !== 'PASTE_HERE';
+  if (configured){
+    gate('<h1>Fridge</h1><p>Loading</p>');
+    try { store = await firebaseStore(); return; }
+    catch(e){ gate(null); }
+  }
+  store = localStore();
+  $('#who').classList.add('local'); $('#who span').textContent = 'This device only';
+  $('#banner').hidden = false;
+  $('#banner').textContent = configured
+    ? 'Could not reach Firebase, so changes are only saved on this device.'
+    : 'Local mode. Add your Firebase config to share this list between phones.';
+  render();
+})();
+</script>
+</body>
+</html>
